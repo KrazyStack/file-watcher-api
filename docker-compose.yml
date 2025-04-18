@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  file-watcher-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: file-watcher-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    environment:
+      - AWS_REGION=us-east-1
+      - FLASK_ENV=development
