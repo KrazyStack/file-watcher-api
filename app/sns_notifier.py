@@ -1,8 +1,13 @@
 import boto3
 import os
 from botocore.exceptions import BotoCoreError, ClientError
+from dotenv import load_dotenv
 
-SNS_TOPIC_ARN = os.getenv("SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:file-received-topic")
+load_dotenv()
+
+SNS_TOPIC_ARN = os.getenv("SNS_TOPIC_ARN")
+print(f"SNS_TOPIC_ARN: {os.getenv('SNS_TOPIC_ARN')}")
+
 
 def notify_admin(filename):
     """
@@ -12,6 +17,8 @@ def notify_admin(filename):
     Returns:
         dict: Result of the publish attempt
     """
+    print(f"SNS_TOPIC_ARN: {os.getenv('SNS_TOPIC_ARN')}")
+    
     sns = boto3.client("sns")
     subject = f"New File Received: {filename}"
     message = f"A new file named '{filename}' has been uploaded and is ready for processing."

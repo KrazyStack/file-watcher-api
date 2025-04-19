@@ -1,18 +1,29 @@
 import paramiko
 import time
 import os
+from dotenv import load_dotenv
 from s3_uploader import upload_file_to_s3
 from sns_notifier import notify_admin
+from datetime import datetime
+
+
+# Load environment variables
+load_dotenv()
+
 
 # SFTP server details
-SFTP_HOST = "your-sftp-server.com"
-SFTP_PORT = 22
-SFTP_USERNAME = "your-username"
-SFTP_PASSWORD = "your-password"
-SFTP_REMOTE_PATH = "/path/to/monitor"
+SFTP_HOST = os.getenv("SFTP_HOST", "localhost")
+SFTP_PORT = int(os.getenv("SFTP_PORT", 22))
+SFTP_USERNAME = os.getenv("SFTP_USERNAME", "your_username")
+SFTP_PASSWORD = os.getenv("SFTP_PASSWORD", "your_password")
+SFTP_DIR = os.getenv("SFTP_DIR", "/upload")
 
 # Local folder path to simulate SFTP drop folder
-LOCAL_SFTP_FOLDER = "./sftp_drop_folder"
+LOCAL_SFTP_FOLDER = os.getenv("LOCAL_SFTP_FOLDER", "/tmp/sftp_files/")
+
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+S3_RAW_PREFIX = os.getenv("S3_RAW_PREFIX", "raw/")
+
 print('---------STARTING SFTP WATCHER----------')
 
 '''
@@ -25,16 +36,12 @@ File Handling: After processing, you could move the file to a processed folder i
 '''
 def watch_local_folder():
     """Monitors the local 'SFTP' folder for new files."""
-    print(f"Watching folder: {LOCAL_SFTP_FOLDER}")
-    print(f"Checking if folder exists: {os.path.exists(LOCAL_SFTP_FOLDER)}")
-    print(f"Listing folder contents: {os.listdir(LOCAL_SFTP_FOLDER)}")
     
     while True:
         # Get list of files in the monitored directory
         files = os.listdir(LOCAL_SFTP_FOLDER)
-        print(f"Local Sftp Folder : {LOCAL_SFTP_FOLDER}")
         for file in files:
-            print(f"File : {file}")
+            print("------------------")
             file_path = os.path.join(LOCAL_SFTP_FOLDER, file)
 
             # Skip directories or hidden files
@@ -42,17 +49,22 @@ def watch_local_folder():
                 continue
 
             print(f"New file found: {file}")
+            print(f"Current Time : {datetime.now()}")
 
             # Upload to S3 and notify
-            # upload_result = upload_file_to_s3(file_path, "your-s3-bucket-name", f"raw/{file}")
-            # if upload_result["success"]:
-            #     # Notify via SNS once file is uploaded to S3
-            #     notify_admin(file)
+            upload_result = upload_file_to_s3(file_path, S3_BUCKET_NAME, f"{S3_RAW_PREFIX}{file}")
+            if upload_result["success"]:
+                # Notify via SNS once file is uploaded to S3
+                result = notify_admin(file)
+                print("SNS Notification Result: " , result)
                 
-            #     # Optionally, move file to a "processed" folder after handling
-            #     os.rename(file_path, os.path.join(LOCAL_SFTP_FOLDER, "processed", file))
+                # Optionally, move file to a "processed" folder after handling
+                os.rename(file_path, os.path.join(LOCAL_SFTP_FOLDER, "processed", file))
+                print("moved to processed folder in local")
+            print("------------------")
             
-        time.sleep(5)  # Check every minute
+            
+        time.sleep(5)  # Check every seconds
 
 
 def connect_to_sftp():
@@ -89,6 +101,5 @@ def watch_sftp_folder():
         sftp.close()
 
 if __name__ == "__main__":
-    print('SFTP_WATCHER')
     # watch_sftp_folder()
     watch_local_folder()
